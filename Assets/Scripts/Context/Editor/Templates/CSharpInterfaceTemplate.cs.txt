@@ -1,0 +1,7 @@
+/// <summary>
+/// ADD CLASS SUMMARY!
+/// </summary>
+public interface #SCRIPTNAME#
+{
+
+}
