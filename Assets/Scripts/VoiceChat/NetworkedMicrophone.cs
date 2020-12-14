@@ -2,14 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using Mirror;
-using POpusCodec;
-using POpusCodec.Enums;
 using UnityEngine;
-using Channels = POpusCodec.Enums.Channels;
 
 public class NetworkedMicrophone : NetworkBehaviour
 {
-    public static event Action<float[]> OnNewSampleWow;
+    public event Action<float[]> OnSampleReady;
 
     [SerializeField] private AudioSource voiceSource;
     private AudioClip voiceClip;
@@ -21,30 +18,14 @@ public class NetworkedMicrophone : NetworkBehaviour
     private DN.OpusSettingsService opusSettings;
     private bool voiceFeedback => opusSettings.voiceFeedback;
 
-    private List<float> sampleList = new List<float>();
-
     protected void Awake()
     {
         netID = GetComponent<NetworkIdentity>();
         opusSettings = ServiceLocator.Locate<DN.OpusSettingsService>();
         opusService = ServiceLocator.Locate<OpusService>();
         var micService = ServiceLocator.Locate<MicrophoneService>();
-        voiceClip = AudioClip.Create("voice", opusSettings.FrameSize, micService.Channels, AudioSettings.outputSampleRate, true, OnAudioRead);
-        voiceSource.clip = voiceClip;
-        voiceSource.loop = true;
-        voiceSource.Play();
-    }
-
-    private void Start()
-    {
-        StartCoroutine(ClearAudio());
-    }
-
-    private IEnumerator ClearAudio()
-    {
-        yield return new WaitForSeconds(5.0f);
-        sampleList.Clear();
-        Debug.Log("Nigger");
+        var voiceAudioSource = voiceSource.gameObject.AddComponent<VoiceAudioSource>();
+        voiceAudioSource.Init(this);
     }
 
     /// <summary>
@@ -106,7 +87,7 @@ public class NetworkedMicrophone : NetworkBehaviour
     public void PlayData(byte[] data)
     {
         float[] packet = opusService.Decode(data);
-        sampleList.AddRange(packet);
+        OnSampleReady?.Invoke(packet);
     }
 
     [Server]
@@ -130,14 +111,5 @@ public class NetworkedMicrophone : NetworkBehaviour
                 player.Value.Send(message, 1);
             }
         }
-    }
-
-    private void OnAudioRead(float[] data)
-    {
-        int size = Mathf.Min(data.Length, sampleList.Count);
-        Debug.Log(sampleList.Count);
-        float[] buffer = sampleList.GetRange(0, size).ToArray();
-        buffer.CopyTo(data, 0);
-        sampleList.RemoveRange(0, size);
     }
 }

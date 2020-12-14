@@ -17,6 +17,9 @@ namespace DN
 		public Delay Delay => delay;
 		[SerializeField] private Delay delay = Delay.Delay20ms;
 
+		public float MicPlayDelay => micPlayDelay;
+		[SerializeField] private float micPlayDelay = 0.3f;
+
 		public bool voiceFeedback = false;
 	}
 }

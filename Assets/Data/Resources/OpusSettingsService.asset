@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   frequency: 48000
   bitRate: 28000
-  delay: 40
+  delay: 20
+  micPlayDelay: 0.21
   voiceFeedback: 1

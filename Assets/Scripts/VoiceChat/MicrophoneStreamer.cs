@@ -43,8 +43,6 @@ public class MicrophoneStreamer : MonoBehaviour
 		int readAbsPos = 0;
 		int prevPos = 0;
 
-		while(!(micService.Position > 0)){ yield return null; }
-
 		while(micService.Recording && audioClip)
 		{
 			bool newDataAvailable = true;
@@ -65,6 +63,8 @@ public class MicrophoneStreamer : MonoBehaviour
 
 					readAbsPos = nextAbsPos;
 				} else newDataAvailable = false;
+
+				Debug.Log(newDataAvailable);
 			}
 
 			yield return null;

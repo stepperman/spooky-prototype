@@ -10,7 +10,7 @@ public class uoihuoih : MonoBehaviour
     void Start()
     {
         misamdi = ServiceLocator.Locate<MicrophoneService>();
-        NetworkedMicrophone.OnNewSampleWow += (a) => samples = a;
+        //NetworkedMicrophone.OnNewSampleWow += (a) => samples = a;
     }
 
     private void OnAudioFilterRead(float[] data, int channels)

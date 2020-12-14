@@ -31,7 +31,7 @@ public class MicrophoneService
 		opusSettings = ServiceLocator.Locate<OpusSettingsService>();
 
 		Devices = Microphone.devices.ToList();
-
+		
 		// start a recording to populate the information.
 		PopulateMicInfo();
 	}
@@ -55,7 +55,6 @@ public class MicrophoneService
 		}
 
 		AudioClip audioClip = Start();
-		//while(!(Position > 80 * audioClip.samples / 1000)){ }
 		GameObject microphoneStreamer = new GameObject("[Service] Microphone Streamer");
 		streamer = microphoneStreamer.AddComponent<MicrophoneStreamer>();
 		streamer.SetInfo(audioClip, this, opusSettings.FrameSize);
