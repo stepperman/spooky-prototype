@@ -244,7 +244,7 @@ MonoBehaviour:
       Data: 13|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: UnityEditor.InspectorWindow, UnityEditor
+      Data: UnityEditor.InspectorWindow, UnityEditor.CoreModule
     - Name: 
       Entry: 8
       Data: 
@@ -253,7 +253,7 @@ MonoBehaviour:
       Data: 14|System.RuntimeType, mscorlib
     - Name: 
       Entry: 1
-      Data: UnityEditor.SceneView, UnityEditor
+      Data: UnityEditor.SceneView, UnityEditor.CoreModule
     - Name: 
       Entry: 8
       Data: 

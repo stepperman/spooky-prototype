@@ -1,7 +1,0 @@
-/// <summary>
-/// ADD CLASS SUMMARY!
-/// </summary>
-public class #SCRIPTNAME#
-{
-
-}
