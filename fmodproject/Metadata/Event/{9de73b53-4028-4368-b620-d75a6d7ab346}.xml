@@ -2,10 +2,10 @@
 <objects serializationModel="Studio.02.01.00">
 	<object class="Event" id="{9de73b53-4028-4368-b620-d75a6d7ab346}">
 		<property name="name">
-			<value>Occlussion</value>
+			<value>VoiceChat</value>
 		</property>
 		<property name="outputFormat">
-			<value>0</value>
+			<value>1</value>
 		</property>
 		<relationship name="folder">
 			<destination>{0c5f2bf4-87b5-4cef-b923-a2ec248a7535}</destination>
@@ -33,6 +33,9 @@
 		</relationship>
 		<relationship name="parameters">
 			<destination>{3596c774-df8f-468f-bf6e-fff3609754cd}</destination>
+		</relationship>
+		<relationship name="banks">
+			<destination>{072a39a0-87ee-4469-9750-8609496a0da2}</destination>
 		</relationship>
 		<relationship name="defaultEvent">
 			<destination>{9f3ece9a-dc15-4023-8d0f-ebe7e477b3cd}</destination>
@@ -73,6 +76,9 @@
 		<relationship name="modules">
 			<destination>{51bc7f81-d80a-4760-bd27-f7426eafd4b8}</destination>
 		</relationship>
+		<relationship name="markers">
+			<destination>{415f9c39-c2f3-4e49-acdd-5461ed1f629d}</destination>
+		</relationship>
 	</object>
 	<object class="ParameterProxy" id="{3596c774-df8f-468f-bf6e-fff3609754cd}">
 		<relationship name="preset">
@@ -97,9 +103,21 @@
 	</object>
 	<object class="MixerBusPanner" id="{d7bf204f-8657-4700-8d3d-dcf75625161c}" />
 	<object class="ProgrammerSound" id="{51bc7f81-d80a-4760-bd27-f7426eafd4b8}">
-		<property name="length">
-			<value>10</value>
+		<property name="isAsync">
+			<value>true</value>
 		</property>
+		<property name="isCutoff">
+			<value>true</value>
+		</property>
+		<property name="length">
+			<value>6.5</value>
+		</property>
+		<property name="looping">
+			<value>true</value>
+		</property>
+		<relationship name="placeholder">
+			<destination>{ec7f491d-eed6-4f82-9ba3-86eab389dd30}</destination>
+		</relationship>
 	</object>
 	<object class="EventMixerGroup" id="{58e13d7b-1deb-4bdf-ab9d-cab0b1f28e81}">
 		<property name="name">
@@ -113,6 +131,17 @@
 		</relationship>
 		<relationship name="output">
 			<destination>{f95e0094-f9c6-410f-84c1-767ad0c4aa73}</destination>
+		</relationship>
+	</object>
+	<object class="SustainPoint" id="{415f9c39-c2f3-4e49-acdd-5461ed1f629d}">
+		<property name="position">
+			<value>6.5</value>
+		</property>
+		<relationship name="timeline">
+			<destination>{28ecc244-f13f-4904-afad-535d6d6369b9}</destination>
+		</relationship>
+		<relationship name="markerTrack">
+			<destination>{8a305a31-a136-405c-b20d-6ba9bf79e02b}</destination>
 		</relationship>
 	</object>
 	<object class="MixerBusEffectChain" id="{4f64a41c-3bb6-42ef-bf6a-45b012dbc437}">
@@ -183,7 +212,7 @@
 			<value>Min Distance</value>
 		</property>
 		<property name="value">
-			<value>0.900000036</value>
+			<value>0</value>
 		</property>
 		<property name="curve">
 			<value>{(0.000000,0.000000)(2.000000,1.000000)(5.000000,5.000000)(10.000000,10.000000)(15.000000,100.000000)(20.000000,1000.000000)(27.000000,10000.000000)}</value>
@@ -194,7 +223,7 @@
 			<value>Max Distance</value>
 		</property>
 		<property name="value">
-			<value>66.5</value>
+			<value>20</value>
 		</property>
 		<property name="curve">
 			<value>{(0.000000,0.000000)(2.000000,1.000000)(5.000000,5.000000)(10.000000,10.000000)(15.000000,100.000000)(20.000000,1000.000000)(27.000000,10000.000000)}</value>

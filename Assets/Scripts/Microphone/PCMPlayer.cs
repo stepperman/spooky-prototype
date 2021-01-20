@@ -46,7 +46,8 @@ namespace QTea
 			int delay = 20;					 // REPLACE WITH OPUS SETTINGS
 			exInfo.decodebuffersize = (uint)(exInfo.defaultfrequency / 1000 * delay); // REPLACE WITH OPUS SETTINGS
 			exInfo.length = (uint)(exInfo.defaultfrequency / 1000 * delay * exInfo.numchannels * sizeof(float));
-			var result = FMODUnity.RuntimeManager.CoreSystem.createSound("playback", FMOD.MODE.OPENUSER | FMOD.MODE.LOOP_NORMAL | FMOD.MODE.CREATESTREAM, ref exInfo, out sound);
+			var result = FMODUnity.RuntimeManager.CoreSystem.createSound("playback", FMOD.MODE.OPENUSER | FMOD.MODE.LOOP_NORMAL | FMOD.MODE.CREATESTREAM | FMOD
+				.MODE.NONBLOCKING, ref exInfo, out sound);
 			Debug.Log("Create sound " + result);
 
 			result = FMODUnity.RuntimeManager.CoreSystem.playSound(sound, default, false, out var channel);
