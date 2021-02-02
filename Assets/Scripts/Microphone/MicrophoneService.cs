@@ -11,12 +11,13 @@ namespace QTea
 	[Service]
 	public class MicrophoneService
 	{
-		private const bool DEBUG = false;
+		private const bool DEBUG = true;
 
 		public event Action<float[]> OnSampleReady;
 
 		public IEnumerable<FMODRecordDriverInfo> Recorders { get; private set; }
 		public FMODRecordDriverInfo CurrentDevice { get; private set; }
+
 		public bool Recording
 		{
 			get
@@ -34,6 +35,8 @@ namespace QTea
 				return position;
 			}
 		}
+
+		public int Channels => CurrentDevice.Channels;
 
 		private FMOD.CREATESOUNDEXINFO recordingInfo;
 		private FMOD.Sound recordingSound;
@@ -81,6 +84,9 @@ namespace QTea
 			recordingInfo.length = (uint)(recordingInfo.defaultfrequency * recordingInfo.numchannels * sizeof(float));
 			length = recordingInfo.length;
 
+			Debug.Log($"<color=red>RECORDING STARTED WITH</color> {CurrentDevice.Name} {CurrentDevice.Channels}\n" +
+				$"<color=green>length</color> {length}");
+
 			FMODUnity.RuntimeManager.CoreSystem.createSound("mic", FMOD.MODE.LOOP_NORMAL | FMOD.MODE.OPENUSER, ref recordingInfo, out recordingSound);
 
 			FMODUnity.RuntimeManager.CoreSystem.recordStart(CurrentDevice.Id, recordingSound, true);	
@@ -103,75 +109,55 @@ namespace QTea
 			
 			int pos = (int)Position;
 			int sampleCount = 0; // sample count that will be read
-			int readAmount = frequency / 1000 * channels * 20 * 4;
 
 			// check if data is available first.
 			bool dataAvailable = false;
 			int difPos = pos - lastPos;
 			if (difPos == 0)
 			{
-				return; // prevent division by 0 errors.
-			}
-			if(difPos < 0) // position has wrapped
-			{
-				// 19200 - 19200 = 0 + pos > readAmount
-				int remainder = (int)(length - lastPos);
-				dataAvailable = remainder + pos >= readAmount;
-				sampleCount = (int)(length - lastPos + pos) / readAmount;
-			} else if(difPos > readAmount)
-			{
-				dataAvailable = true;
-				sampleCount = difPos / readAmount;
+				return; // no new data!.
 			}
 
-			if(!dataAvailable)
+			if(difPos < 0)
 			{
-				//Debug.Log("No data available, not populating any samples.");
-				return;
+				// meaning we wrapped, so extra calculation is needed for the size.
+				difPos = (int)length - lastPos + pos;
 			}
 
-			// if data is available, read the last few samples starting from last pos.
 			int curPos = lastPos;
 			StringBuilder logMessage = new StringBuilder();
-			for(int i = 0; i < sampleCount; i++)
+			logMessage.AppendLine($"<color=red>curPos: {curPos}</color> <color=green>Pos: {Position}</color>");
+			float[] buffer = new float[difPos / 4];
+
+			IntPtr ptrData1, ptrData2;
+			uint ptrLength1, ptrLength2;
+			var result = recordingSound.@lock((uint)curPos, (uint)difPos, out ptrData1, out ptrData2, out ptrLength1, out ptrLength2);
+
+			logMessage.AppendLine($"<color=yellow>Read result: l1 [ {ptrLength1} ] l2 [ {ptrLength2} ]</color>");
+			logMessage.AppendLine($"Read until [ {curPos + difPos} ] (excluding wrap)");
+			logMessage.AppendLine($"Lock {result}");
+
+			float[] data1 = new float[ptrLength1 / sizeof(float)];
+
+			unsafe
 			{
-				logMessage.AppendLine($"<color=yellow>Sample count {i}</color> <color=red>curPos: {curPos}</color> <color=green>Pos: {Position}</color>");
-				float[] buffer = new float[readAmount / 4];
-
-				//bool wrap = curPos + readAmount > length;
-				//if(!wrap)
-				bool wrap = readAmount + pos >= (int)length;
-				uint firstReadAmount = (uint)(!wrap ? readAmount : length - curPos);
-				IntPtr ptrData1, ptrData2;
-				uint ptrLength1, ptrLength2;
-				var result = recordingSound.@lock((uint)curPos, (uint)readAmount, out ptrData1, out ptrData2, out ptrLength1, out ptrLength2);
-
-				logMessage.AppendLine($"<color=yellow>Read result: l1 [ {ptrLength1} ] l2 [ {ptrLength2} ]</color>");
-				logMessage.AppendLine($"Read until [ {curPos + readAmount} ]");
-				logMessage.AppendLine($"Lock {result}");
-
-				float[] data1 = new float[ptrLength1 / sizeof(float)];
-
-				unsafe
+				float *pcm = (float *)ptrData1.ToPointer();
+				for(int j = 0; j < data1.Length; j++)
 				{
-					float *pcm = (float *)ptrData1.ToPointer();
-					for(int j = 0; j < data1.Length; j++)
-					{
-						data1[j] = pcm[j];
-					}
+					data1[j] = pcm[j];
 				}
+			}
 
-				logMessage.AppendLine($"<color=blue>data1 length: {data1.Length} {data1[0]}</color>");
+			logMessage.AppendLine($"<color=blue>data1 length: {data1.Length} {data1[0]}</color>");
 
-				result = recordingSound.unlock(ptrData1, ptrData2, ptrLength1, ptrLength2);
-				logMessage.AppendLine($"Unlock {result}");
+			result = recordingSound.unlock(ptrData1, ptrData2, ptrLength1, ptrLength2);
+			logMessage.AppendLine($"Unlock {result}");
 
-				OnSampleReady?.Invoke(data1);
-				curPos += readAmount;
-				if(curPos >= length)
-				{
-					curPos -= (int)length;
-				}
+			OnSampleReady?.Invoke(data1);
+			curPos += difPos;
+			if(curPos >= length)
+			{
+				curPos -= (int)length;
 			}
 
 			if(DEBUG) Debug.Log(logMessage.ToString());

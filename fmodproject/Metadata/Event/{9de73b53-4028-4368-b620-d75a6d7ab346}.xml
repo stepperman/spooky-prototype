@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <objects serializationModel="Studio.02.01.00">
 	<object class="Event" id="{9de73b53-4028-4368-b620-d75a6d7ab346}">
-		<property name="note" />
 		<property name="name">
 			<value>VoiceChat</value>
 		</property>
@@ -138,8 +137,8 @@
 	</object>
 	<object class="MixerBusEffectChain" id="{4f64a41c-3bb6-42ef-bf6a-45b012dbc437}">
 		<relationship name="effects">
-			<destination>{a1c78957-5342-4485-9211-8d06f6a78f4f}</destination>
 			<destination>{8fbad64e-e95a-4eb9-a3a4-1da268e29278}</destination>
+			<destination>{a1c78957-5342-4485-9211-8d06f6a78f4f}</destination>
 		</relationship>
 	</object>
 	<object class="MixerBusPanner" id="{7f5a87ec-5842-4868-8f4b-c3f84d503839}" />
@@ -150,12 +149,12 @@
 		</relationship>
 	</object>
 	<object class="MixerBusPanner" id="{720e7736-4833-4bb4-9df7-94f2abf52a9a}" />
+	<object class="MixerBusFader" id="{8fbad64e-e95a-4eb9-a3a4-1da268e29278}" />
 	<object class="PluginEffect" id="{a1c78957-5342-4485-9211-8d06f6a78f4f}">
 		<relationship name="plugin">
 			<destination>{5b4deb5f-6977-4250-835c-1700fdad22e3}</destination>
 		</relationship>
 	</object>
-	<object class="MixerBusFader" id="{8fbad64e-e95a-4eb9-a3a4-1da268e29278}" />
 	<object class="MixerBusFader" id="{362fa459-50e2-400f-a2c2-4c511112c741}" />
 	<object class="Plugin" id="{5b4deb5f-6977-4250-835c-1700fdad22e3}">
 		<property name="identifier">

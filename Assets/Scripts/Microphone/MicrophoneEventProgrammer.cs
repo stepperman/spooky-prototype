@@ -56,8 +56,6 @@ namespace QTea
 			eventInstance.start();
 
 			StartCoroutine(DSPAddCoroutine());
-
-			//eventInstance.release();
 		}
 
 		private IEnumerator DSPAddCoroutine()
@@ -68,6 +66,8 @@ namespace QTea
 			var result = eventInstance.getChannelGroup(out var group);
 			Debug.Log("getChannelGroup " + result);
 			result = group.addDSP(0, fmodDsp);
+			group.getNumDSPs(out int numdsps);
+			Debug.Log($"<color=red>numdsps</color> {numdsps}");
 			Debug.Log("addDSP " + result);
 		}
 
