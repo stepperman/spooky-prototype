@@ -96,6 +96,10 @@ namespace QTea
 			// 20 ms in position data is... Frequency / 1000 * channels * sizeof(float) > 4 * 20... I think = 3840
 			// so convert 3840 to float, which then goes to 960 samples! 
 			// We have to wait 3840 samples before reading the last 3840 samples. (and read the rest that was missed too.)
+
+			// UPDATE : in hindsight it doesn't matter at all how much we read... it would be better if it just ready *anything*
+			// and then offloaded that to the buffer. I was under the impression that I was going to do everything samples
+			// of 960, but that makes no sense after all.
 			
 			int pos = (int)Position;
 			int sampleCount = 0; // sample count that will be read

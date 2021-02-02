@@ -1,22 +1,30 @@
 using UnityEngine;
 using System;
-using FMODUnity;
+using System.Collections;
 using System.Runtime.InteropServices;
-using System.IO;
 
 namespace QTea
 {
+	/// <summary>
+	/// Plays a buffer from the <see cref="IPCMBuffer"/> by
+	/// insert a DSP between the chain.
+	/// </summary>
 	public class MicrophoneEventProgrammer : MonoBehaviour
 	{
+		/// <summary>
+		/// Buffer that the event programmer should use.
+		/// It is fetched by getting the component with the implemented interface (any work).
+		/// </summary>
 		private IPCMBuffer buffer;
 
-		[SerializeField, EventRef]
+		[SerializeField, FMODUnity.EventRef]
 		private string @event;
 		private FMOD.Studio.EventInstance eventInstance;
-		private FMOD.Studio.EVENT_CALLBACK programInstrumentCreatedEvent;
-		private FMOD.SOUND_PCMREAD_CALLBACK pcmReadCallback;
-
 		private bool playing;
+
+		private FMOD.DSP_READCALLBACK dspReadCallback;
+		private FMOD.DSP_SHOULDIPROCESS_CALLBACK dspShouldProcessCallback;
+		private FMOD.DSP fmodDsp;
 
 		private void Start()
 		{
@@ -24,135 +32,93 @@ namespace QTea
 
 			if(buffer == null)
 			{
-				Debug.LogError("The Microphone Event Programmer requires an assigned buffer. Please assign any buffer.");
+				UnityEngine.Debug.LogError("The Microphone Event Programmer requires an assigned buffer. Please assign any buffer.");
 			}
 
-			WriteFile("Start GOT INSTANCE");
 			eventInstance = FMODUnity.RuntimeManager.CreateInstance(@event);
+			AttachInstance();
 
-			WriteFile("Start CREATING EVENT CALLBACK");
-			programInstrumentCreatedEvent = new FMOD.Studio.EVENT_CALLBACK(FMOD_OnProgramInsturmentCreatedEvent);
-			WriteFile("Start ASSIGNING CALLBACKS");
-			var callbacks =
-				FMOD.Studio.EVENT_CALLBACK_TYPE.CREATE_PROGRAMMER_SOUND
-				| FMOD.Studio.EVENT_CALLBACK_TYPE.DESTROY_PROGRAMMER_SOUND
-				| FMOD.Studio.EVENT_CALLBACK_TYPE.STARTED
-				| FMOD.Studio.EVENT_CALLBACK_TYPE.STOPPED;
-			WriteFile("Start SETTINGS CALLBAKCS");
-			eventInstance.setCallback(programInstrumentCreatedEvent, callbacks);
+			dspReadCallback = new FMOD.DSP_READCALLBACK(FMOD_DSPREADCALLBACK);
 
-			WriteFile("Start STARTING INSTANCE");
+			FMOD.DSP_DESCRIPTION dspdes = new FMOD.DSP_DESCRIPTION
+			{
+				read = dspReadCallback,
+				numinputbuffers = 0,
+				numoutputbuffers = 1,
+				version = 1,
+				name = System.Text.Encoding.ASCII.GetBytes("voice"),
+				numparameters = 0
+			};
+
+			FMOD.RESULT result = FMODUnity.RuntimeManager.CoreSystem.createDSP(ref dspdes, out fmodDsp);
+			UnityEngine.Debug.Log("Creating DPS " + result);
+
 			eventInstance.start();
-			WriteFile("Start RELEASEING");
-			eventInstance.release();
+
+			StartCoroutine(DSPAddCoroutine());
+
+			//eventInstance.release();
+		}
+
+		private IEnumerator DSPAddCoroutine()
+		{
+			// audio is a different thread so we need to wait until the channel group is created.
+
+			yield return new WaitForSeconds(0.5f);
+			var result = eventInstance.getChannelGroup(out var group);
+			Debug.Log("getChannelGroup " + result);
+			result = group.addDSP(0, fmodDsp);
+			Debug.Log("addDSP " + result);
 		}
 
 		private void OnDestroy()
 		{
-			WriteFile("OnDestroy RELEASING");
+			// before removing the DSP make sure it's gone from the channel group too!
+			// (without this unity hangs)
+			eventInstance.getChannelGroup(out var channelGroup);
+			channelGroup.removeDSP(fmodDsp);
+
+			fmodDsp.release();
+			fmodDsp.clearHandle();
 			eventInstance.release();
-			WriteFile("OnDestroy CLEAR HANDLE ");
 			eventInstance.clearHandle();
 		}
 
-		[AOT.MonoPInvokeCallback(typeof(FMOD.Studio.EVENT_CALLBACK))]
-		private FMOD.RESULT FMOD_OnProgramInsturmentCreatedEvent(FMOD.Studio.EVENT_CALLBACK_TYPE type, IntPtr eventPtr, IntPtr parameters)
+		private void AttachInstance()
 		{
-			// what the fuck am i doing
-			switch (type)
-			{
-				case FMOD.Studio.EVENT_CALLBACK_TYPE.CREATE_PROGRAMMER_SOUND:
-					WriteFile("FMOD_OnProgramInsturmentCreatedEvent CREATE_PROGRAMMER_SOUND");
-
-					Debug.Log("Programmer Sound Created");
-					var properties = Marshal.PtrToStructure<FMOD.Studio.PROGRAMMER_SOUND_PROPERTIES>(parameters);
-					var result = CreateProgrammerInstrument(ref properties);
-					if (result != FMOD.RESULT.OK)
-					{
-						Debug.Log(result);
-						return result;
-					}
-					Marshal.StructureToPtr(properties, parameters, false);
-					return result;
-				case FMOD.Studio.EVENT_CALLBACK_TYPE.DESTROY_PROGRAMMER_SOUND:
-					WriteFile("FMOD_OnProgramInsturmentCreatedEvent DESTROY_PROGRAMMER_SOUND");
-
-					var destroyParameters = Marshal.PtrToStructure<FMOD.Studio.PROGRAMMER_SOUND_PROPERTIES>(parameters);
-					FMOD.Sound sound = new FMOD.Sound(destroyParameters.sound);
-					return sound.release();
-				case FMOD.Studio.EVENT_CALLBACK_TYPE.STARTED:
-					WriteFile("FMOD_OnProgramInsturmentCreatedEvent STARTED");
-					playing = true;
-					break;
-				case FMOD.Studio.EVENT_CALLBACK_TYPE.STOPPED:
-					WriteFile("FMOD_OnProgramInsturmentCreatedEvent STOPPED");
-					playing = false;
-					break;
-			}
-
-			return FMOD.RESULT.OK;
+			var rigidbody = GetComponent<Rigidbody>();
+			eventInstance.set3DAttributes(FMODUnity.RuntimeUtils.To3DAttributes(transform, rigidbody));
+			FMODUnity.RuntimeManager.AttachInstanceToGameObject(eventInstance, transform, rigidbody);
 		}
 
-		private FMOD.RESULT CreateProgrammerInstrument(ref FMOD.Studio.PROGRAMMER_SOUND_PROPERTIES soundProperties)
+		private FMOD.RESULT FMOD_DSPREADCALLBACK(ref FMOD.DSP_STATE state, IntPtr @in, IntPtr @out, uint length, int channels, ref int outchannels)
 		{
-			WriteFile("CreateProgrammerInstrument()");
+			var stateFunctions = Marshal.PtrToStructure<FMOD.DSP_STATE_FUNCTIONS>(state.functions);
+			int rate = 0;
+			uint blocksize = 0;
+			int speakermode_mixer = 0, speakermode_output = 0;
 
-			FMOD.CREATESOUNDEXINFO exInfo = CreateSoundInfo();
-			var result = FMODUnity.RuntimeManager.CoreSystem.createSound(
-				"playback",
-				FMOD.MODE.OPENUSER | FMOD.MODE.LOOP_NORMAL | FMOD.MODE.CREATESTREAM,
-				ref exInfo, out FMOD.Sound sound);
-			soundProperties.sound = sound.handle;
-			soundProperties.subsoundIndex = -1;
-			return result;
-		}
+			stateFunctions.getsamplerate(ref state, ref rate);
+			stateFunctions.getblocksize(ref state, ref blocksize);
+			stateFunctions.getspeakermode(ref state, ref speakermode_mixer, ref speakermode_output);
 
-		private FMOD.CREATESOUNDEXINFO CreateSoundInfo()
-		{
-			WriteFile("CreateSoundInfo()");
-
-			FMOD.CREATESOUNDEXINFO exInfo = default;
-			exInfo.cbsize = Marshal.SizeOf(typeof(FMOD.CREATESOUNDEXINFO));
-			exInfo.pcmreadcallback = (pcmReadCallback = new FMOD.SOUND_PCMREAD_CALLBACK(FMOD_ReadCallback));
-			exInfo.format = FMOD.SOUND_FORMAT.PCMFLOAT;
-			exInfo.numchannels = 1;          // REPLACE WITH OPUS SETTINGS
-			exInfo.defaultfrequency = 48000; // REPLACE WITH OPUS SETTINGS
-			int delay = 20;                  // REPLACE WITH OPUS SETTINGS
-			exInfo.decodebuffersize = (uint)(exInfo.defaultfrequency / 1000 * delay); // REPLACE WITH OPUS SETTINGS
-			exInfo.length = (uint)(exInfo.defaultfrequency / 1000 * delay * exInfo.numchannels * sizeof(float));
-			return exInfo;
-		}
-
-		private FMOD.RESULT FMOD_ReadCallback(IntPtr sound, IntPtr data, uint segmentLength)
-		{
-			WriteFile("READ_CALLBACK BEFORE ANYTHING");
-			float[] samples = buffer.PopSamples(segmentLength / 4);
-			WriteFile("READ_CALLBACK POPPED SAMPLES");
-
-			if(samples == null || samples.Length == 0)
-			{
-				WriteFile("READ_CALLBACK NO SAMPLES. RETURNING");
-				return FMOD.RESULT.OK;
-			}
-
-			WriteFile($"READ_CALLBACK GOT SAMPLES. segmentLength: {segmentLength}. samples.Length: {samples.Length}");
+			float[] samples = buffer.PopSamples(length / (uint)channels);
+			outchannels = 1;
+			Debug.Log("read callback " + length / 4 + " " + channels + $"\n<color=yellow>rate</color> = {rate}. <color=yellow>blocksize</color> = {blocksize}. " +
+				$"<color=yellow>speakermode_mixer</color> = {speakermode_mixer}. <color=yellow>speakermode_output</color> = {speakermode_output}. " +
+				$"\n<color=yellow>channel in</color> = {channels}. <color=yellow>channel out</color> = {outchannels}");
 
 			unsafe
 			{
-				float* pcm = (float*)data.ToPointer();
+				float* data = (float*)@out.ToPointer();
+
 				for (int i = 0; i < samples.Length; i++)
 				{
-					*pcm++ = samples[i];
+					*data++ = samples[i];
 				}
-
-				return FMOD.RESULT.OK;
 			}
-		}
 
-		private void WriteFile(string content)
-		{
-			Debug.Log(content);
-			//File.AppendAllText(@"C:\Users\Stepe\Documents\testtesttest.txt", content + '\n');
+			return FMOD.RESULT.OK;
 		}
 	}
 }

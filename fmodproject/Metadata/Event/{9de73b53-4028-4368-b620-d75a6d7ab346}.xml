@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <objects serializationModel="Studio.02.01.00">
 	<object class="Event" id="{9de73b53-4028-4368-b620-d75a6d7ab346}">
+		<property name="note" />
 		<property name="name">
 			<value>VoiceChat</value>
 		</property>
 		<property name="outputFormat">
-			<value>1</value>
+			<value>0</value>
 		</property>
 		<relationship name="folder">
 			<destination>{0c5f2bf4-87b5-4cef-b923-a2ec248a7535}</destination>
@@ -66,7 +67,7 @@
 	<object class="MarkerTrack" id="{8a305a31-a136-405c-b20d-6ba9bf79e02b}" />
 	<object class="GroupTrack" id="{9ca535ce-3cad-4609-9783-5af72432acc1}">
 		<relationship name="modules">
-			<destination>{51bc7f81-d80a-4760-bd27-f7426eafd4b8}</destination>
+			<destination>{f99e4533-92bd-4be7-8336-26ddb14130b6}</destination>
 		</relationship>
 		<relationship name="mixerGroup">
 			<destination>{58e13d7b-1deb-4bdf-ab9d-cab0b1f28e81}</destination>
@@ -74,10 +75,10 @@
 	</object>
 	<object class="Timeline" id="{28ecc244-f13f-4904-afad-535d6d6369b9}">
 		<relationship name="modules">
-			<destination>{51bc7f81-d80a-4760-bd27-f7426eafd4b8}</destination>
+			<destination>{f99e4533-92bd-4be7-8336-26ddb14130b6}</destination>
 		</relationship>
 		<relationship name="markers">
-			<destination>{415f9c39-c2f3-4e49-acdd-5461ed1f629d}</destination>
+			<destination>{123de3de-c8f8-4d5e-8a67-4d465f67b8b9}</destination>
 		</relationship>
 	</object>
 	<object class="ParameterProxy" id="{3596c774-df8f-468f-bf6e-fff3609754cd}">
@@ -102,22 +103,10 @@
 		</relationship>
 	</object>
 	<object class="MixerBusPanner" id="{d7bf204f-8657-4700-8d3d-dcf75625161c}" />
-	<object class="ProgrammerSound" id="{51bc7f81-d80a-4760-bd27-f7426eafd4b8}">
-		<property name="isAsync">
-			<value>true</value>
-		</property>
-		<property name="isCutoff">
-			<value>true</value>
-		</property>
+	<object class="SingleSound" id="{f99e4533-92bd-4be7-8336-26ddb14130b6}">
 		<property name="length">
-			<value>6.5</value>
+			<value>0.5</value>
 		</property>
-		<property name="looping">
-			<value>true</value>
-		</property>
-		<relationship name="placeholder">
-			<destination>{ec7f491d-eed6-4f82-9ba3-86eab389dd30}</destination>
-		</relationship>
 	</object>
 	<object class="EventMixerGroup" id="{58e13d7b-1deb-4bdf-ab9d-cab0b1f28e81}">
 		<property name="name">
@@ -133,9 +122,12 @@
 			<destination>{f95e0094-f9c6-410f-84c1-767ad0c4aa73}</destination>
 		</relationship>
 	</object>
-	<object class="SustainPoint" id="{415f9c39-c2f3-4e49-acdd-5461ed1f629d}">
+	<object class="LoopRegion" id="{123de3de-c8f8-4d5e-8a67-4d465f67b8b9}">
 		<property name="position">
-			<value>6.5</value>
+			<value>0</value>
+		</property>
+		<property name="length">
+			<value>0.5</value>
 		</property>
 		<relationship name="timeline">
 			<destination>{28ecc244-f13f-4904-afad-535d6d6369b9}</destination>

@@ -10,6 +10,7 @@ namespace QTea
 	/// </summary>
 	public class MicrophoneBuffer : MonoBehaviour, IPCMBuffer
 	{
+		public int Count => buffer.Count;
 		private List<float> buffer;
 		private MicrophoneService microphoneService;
 
