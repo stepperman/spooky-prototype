@@ -10,6 +10,7 @@ namespace QTea
 	{
 		public Action OnUpdate;
 		public Action OnLateUpdate;
+		public Action OnDestroy;
 
 		public UnityCallbackService()
 		{
@@ -19,6 +20,7 @@ namespace QTea
 
 			callbackComp.OnUpdate += () => OnUpdate?.Invoke();
 			callbackComp.OnLateUpdate += () => OnLateUpdate?.Invoke();
+			callbackComp.OnDestroyEvent += () => OnDestroy?.Invoke();
 		}
 	}
 }

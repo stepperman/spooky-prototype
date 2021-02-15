@@ -7,6 +7,7 @@ namespace QTea.CallbackService
 	{
 		public Action OnUpdate;
 		public Action OnLateUpdate;
+		public Action OnDestroyEvent;
 
 		protected void Update()
 		{
@@ -16,6 +17,11 @@ namespace QTea.CallbackService
 		protected void LateUpdate()
 		{
 			OnLateUpdate?.Invoke();
+		}
+
+		protected void OnDestroy()
+		{
+			OnDestroyEvent?.Invoke();
 		}
 	}
 }

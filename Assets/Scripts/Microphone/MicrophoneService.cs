@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using DN.Service;
 using UnityEngine;
 
@@ -11,7 +13,7 @@ namespace QTea
 	[Service]
 	public class MicrophoneService
 	{
-		private const bool DEBUG = true;
+		private const bool DEBUG = false;
 
 		public event Action<float[]> OnSampleReady;
 
@@ -43,6 +45,8 @@ namespace QTea
 		private uint length;
 		private int frequency = 48000;
 
+		System.IO.FileStream sw;
+
 		public MicrophoneService()
 		{
 			FMOD.System coreSystem = FMODUnity.RuntimeManager.CoreSystem;
@@ -66,6 +70,17 @@ namespace QTea
 
 			var callbackService = ServiceLocator.Locate<UnityCallbackService>();
 			callbackService.OnUpdate += OnUpdateEvent;
+			callbackService.OnDestroy += OnDestroyEvent;
+		}
+
+		private void OnDestroyEvent()
+		{
+			StopRecording();
+			var result = recordingSound.release();
+			Debug.Log($"<color=yellow>recordingSound.release()</color> {result}");
+			recordingSound.clearHandle();
+			sw.Dispose();
+
 		}
 
 		public void StartRecording()
@@ -88,15 +103,25 @@ namespace QTea
 				$"<color=green>length</color> {length}");
 
 			FMODUnity.RuntimeManager.CoreSystem.createSound("mic", FMOD.MODE.LOOP_NORMAL | FMOD.MODE.OPENUSER, ref recordingInfo, out recordingSound);
-
+			/*sw = System.IO.File.Open("C:\\Users\\Stepe\\Documents\\rawdatatesting.txt", System.IO.FileMode.Append, System.IO.FileAccess.Write);*/
 			FMODUnity.RuntimeManager.CoreSystem.recordStart(CurrentDevice.Id, recordingSound, true);	
 		}
 
 		int lastPos = 0;
 		private int channels = 1;
+		object @lock = null;
 
 		private void OnUpdateEvent()
 		{
+			/*void WriteRawData(float[] data)
+			{
+				for (int i = 0; i < data.Length; i++)
+				{
+					byte[] bytes = BitConverter.GetBytes(data[i]);
+					sw.Write(bytes, 0, bytes.Length);
+				}
+			}*/
+
 			// get the last 20 ms in samples.
 			// 20 ms in samples is Frequency / 1000 * channels * 20 = 960 if 1 channel @ 48khz
 			// 20 ms in position data is... Frequency / 1000 * channels * sizeof(float) > 4 * 20... I think = 3840
@@ -106,7 +131,7 @@ namespace QTea
 			// UPDATE : in hindsight it doesn't matter at all how much we read... it would be better if it just ready *anything*
 			// and then offloaded that to the buffer. I was under the impression that I was going to do everything samples
 			// of 960, but that makes no sense after all.
-			
+
 			int pos = (int)Position;
 			int sampleCount = 0; // sample count that will be read
 
@@ -154,6 +179,7 @@ namespace QTea
 			logMessage.AppendLine($"Unlock {result}");
 
 			OnSampleReady?.Invoke(data1);
+			//WriteRawData(data1);
 			curPos += difPos;
 			if(curPos >= length)
 			{

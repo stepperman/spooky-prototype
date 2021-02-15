@@ -1,7 +1,11 @@
 using UnityEngine;
+using FMODUnity;
 using System;
+using System.IO;
 using System.Collections;
 using System.Runtime.InteropServices;
+using FMOD;
+using Debug = UnityEngine.Debug;
 
 namespace QTea
 {
@@ -11,114 +15,185 @@ namespace QTea
 	/// </summary>
 	public class MicrophoneEventProgrammer : MonoBehaviour
 	{
+		private const bool DEBUG = true;
+		private const bool VERBOSE = true;
+		private const string pluginName = "Resonance Audio Source";
+		static private uint? _resonanceAudioSourceHandle = null;
+		
+		private uint ResonanceAudioSourceHandle
+		{
+			get
+			{
+				if(!_resonanceAudioSourceHandle.HasValue)
+				{
+					_resonanceAudioSourceHandle = GetResonancePluginHandle();
+				}
+
+				return _resonanceAudioSourceHandle.Value; 
+			}
+		}
+
 		/// <summary>
 		/// Buffer that the event programmer should use.
 		/// It is fetched by getting the component with the implemented interface (any work).
 		/// </summary>
 		private IPCMBuffer buffer;
 
-		[SerializeField, FMODUnity.EventRef]
-		private string @event;
-		private FMOD.Studio.EventInstance eventInstance;
-		private bool playing;
+		private FMOD.ChannelGroup channelGroup;
+		private FMOD.DSP resonanceDSP;
+		private FMOD.Sound sound;
+		private FMOD.Channel channel;
 
-		private FMOD.DSP_READCALLBACK dspReadCallback;
-		private FMOD.DSP_SHOULDIPROCESS_CALLBACK dspShouldProcessCallback;
-		private FMOD.DSP fmodDsp;
+		private FMOD.SOUND_PCMREAD_CALLBACK readCallback;
+
+		private bool playing = false;
 
 		private void Start()
 		{
 			buffer = GetComponent<IPCMBuffer>();
 
-			if(buffer == null)
+			if (buffer == null)
 			{
 				UnityEngine.Debug.LogError("The Microphone Event Programmer requires an assigned buffer. Please assign any buffer.");
+				Destroy(this);
+				return;
 			}
 
-			eventInstance = FMODUnity.RuntimeManager.CreateInstance(@event);
-			AttachInstance();
+			CreateChannelGroup();
+			CreateDSP();
+			CreateSound();
 
-			dspReadCallback = new FMOD.DSP_READCALLBACK(FMOD_DSPREADCALLBACK);
-
-			FMOD.DSP_DESCRIPTION dspdes = new FMOD.DSP_DESCRIPTION
-			{
-				read = dspReadCallback,
-				numinputbuffers = 0,
-				numoutputbuffers = 1,
-				version = 1,
-				name = System.Text.Encoding.ASCII.GetBytes("voice"),
-				numparameters = 0
-			};
-
-			FMOD.RESULT result = FMODUnity.RuntimeManager.CoreSystem.createDSP(ref dspdes, out fmodDsp);
-			UnityEngine.Debug.Log("Creating DPS " + result);
-
-			eventInstance.start();
-
-			StartCoroutine(DSPAddCoroutine());
+			// and finally, play the sound
+			PlaySound();
 		}
 
-		private IEnumerator DSPAddCoroutine()
+		private void PlaySound()
 		{
-			// audio is a different thread so we need to wait until the channel group is created.
+			RESULT result = RuntimeManager.CoreSystem.playSound(sound, default/*channelGroup*/, false, out channel);
+		}
 
-			yield return new WaitForSeconds(0.5f);
-			var result = eventInstance.getChannelGroup(out var group);
-			Debug.Log("getChannelGroup " + result);
-			result = group.addDSP(0, fmodDsp);
-			group.getNumDSPs(out int numdsps);
-			Debug.Log($"<color=red>numdsps</color> {numdsps}");
-			Debug.Log("addDSP " + result);
+		/// <summary>
+		/// Creates the channel group where the DSP will be added in.
+		/// </summary>
+		private void CreateChannelGroup()
+		{
+			FMOD.RESULT result = FMODUnity.RuntimeManager.CoreSystem.createChannelGroup("voice", out channelGroup);
+			//channelGroup.setMode(MODE._3D);
+			FDEBUG("createChannelGroup", result);
+		}
+
+		/// <summary>
+		/// Creates the Resonance DSP and adds it to the channel group.
+		/// </summary>
+		private void CreateDSP()
+		{
+			RESULT result;
+			// this might have to be applied every frame? (Everytime it reads?)
+			var tdAttributes = FMODUnity.RuntimeUtils.To3DAttributes(transform, GetComponent<Rigidbody>());
+			result = channelGroup.set3DAttributes(ref tdAttributes.position, ref tdAttributes.velocity);
+			FDEBUG("set3DAttributes", result);
+
+			// create the DSP
+			result = RuntimeManager.CoreSystem.createDSPByPlugin(ResonanceAudioSourceHandle, out resonanceDSP);
+			FDEBUG("createDSPByPlugin", result);
+			// TODO : allow changing of plugin settings.
+
+			// add it to the channelGroup
+			//channelGroup.addDSP(0, resonanceDSP);
+		}
+
+		/// <summary>
+		/// creates the sound and adds the channel group to it.
+		/// </summary>
+		private void CreateSound()
+		{
+			RESULT result;
+
+			CREATESOUNDEXINFO exInfo = new CREATESOUNDEXINFO();
+			exInfo.cbsize = Marshal.SizeOf(typeof(CREATESOUNDEXINFO));
+			exInfo.format = SOUND_FORMAT.PCMFLOAT;
+			exInfo.numchannels = 1; // might have to be 2 for Resonance?
+			exInfo.defaultfrequency = 48000;
+			exInfo.decodebuffersize = (uint)(exInfo.defaultfrequency / 1000 * 4);
+			exInfo.length = exInfo.decodebuffersize * (uint)exInfo.numchannels * sizeof(float);
+			exInfo.pcmreadcallback = (readCallback = new SOUND_PCMREAD_CALLBACK(FMOD_PCM_READ_CALLBACK));
+
+			result = RuntimeManager.CoreSystem.createSound("voice chat", MODE.LOOP_NORMAL | MODE.CREATESTREAM | MODE.OPENUSER | MODE._3D | MODE.OPENRAW, ref exInfo, out sound);
+			
+			FDEBUG("createSound", result);
+		}
+
+		private FMOD.RESULT FMOD_PCM_READ_CALLBACK(IntPtr sound, IntPtr data, uint datalen)
+		{
+			if(buffer.Count == 0)
+			{
+				return RESULT.OK;
+			}
+
+
+			float[] samples = buffer.PopSamples(datalen);
+			Debug.Log($"{datalen} en {samples.Length}");
+
+			unsafe
+			{
+				float* fData = (float*)data.ToPointer();
+
+				for (int i = 0; i < samples.Length; i++)
+				{
+					*fData++ = samples[i];
+				}
+			}
+
+			return RESULT.OK;
+		}
+
+		private uint GetResonancePluginHandle()
+		{
+			RuntimeManager.CoreSystem.getNumPlugins(FMOD.PLUGINTYPE.DSP, out int numplugins);
+
+			if (numplugins == 0) throw new Exception("Resonance plugin not loaded.");
+
+			for (int i = 0; i < numplugins; i++)
+			{
+				RuntimeManager.CoreSystem.getPluginHandle(FMOD.PLUGINTYPE.DSP, i, out uint handle);
+				RuntimeManager.CoreSystem.getPluginInfo(handle, out var plugintype, out string name, 50, out uint version);
+				if(name == pluginName) return handle;
+			}
+
+			throw new Exception("Resonance plugin not loaded.");
 		}
 
 		private void OnDestroy()
 		{
-			// before removing the DSP make sure it's gone from the channel group too!
-			// (without this unity hangs)
-			eventInstance.getChannelGroup(out var channelGroup);
-			channelGroup.removeDSP(fmodDsp);
+			Debug.Log("releasing microphone stuff..");
+			RESULT result;
 
-			fmodDsp.release();
-			fmodDsp.clearHandle();
-			eventInstance.release();
-			eventInstance.clearHandle();
+			// properly free FMOD memory and instances here.
+			result = sound.release();
+			FDEBUG("sound.release()", result);
+			//channelGroup.removeDSP(resonanceDSP);
+			result = resonanceDSP.release();
+			FDEBUG("resonanceDSP.release()", result);
+			result =channelGroup.release();
+			FDEBUG("channelGroup.release()", result);
+			buffer.Clear();
 		}
 
-		private void AttachInstance()
+		private void FDEBUG(string action, FMOD.RESULT result)
 		{
-			var rigidbody = GetComponent<Rigidbody>();
-			eventInstance.set3DAttributes(FMODUnity.RuntimeUtils.To3DAttributes(transform, rigidbody));
-			FMODUnity.RuntimeManager.AttachInstanceToGameObject(eventInstance, transform, rigidbody);
-		}
+#pragma warning disable CS0162 // Unreachable code detected
+			if (!DEBUG) return;
 
-		private FMOD.RESULT FMOD_DSPREADCALLBACK(ref FMOD.DSP_STATE state, IntPtr @in, IntPtr @out, uint length, int channels, ref int outchannels)
-		{
-			var stateFunctions = Marshal.PtrToStructure<FMOD.DSP_STATE_FUNCTIONS>(state.functions);
-			int rate = 0;
-			uint blocksize = 0;
-			int speakermode_mixer = 0, speakermode_output = 0;
 
-			stateFunctions.getsamplerate(ref state, ref rate);
-			stateFunctions.getblocksize(ref state, ref blocksize);
-			stateFunctions.getspeakermode(ref state, ref speakermode_mixer, ref speakermode_output);
-
-			float[] samples = buffer.PopSamples(length / (uint)channels);
-			outchannels = 1;
-			Debug.Log("read callback " + length / 4 + " " + channels + $"\n<color=yellow>rate</color> = {rate}. <color=yellow>blocksize</color> = {blocksize}. " +
-				$"<color=yellow>speakermode_mixer</color> = {speakermode_mixer}. <color=yellow>speakermode_output</color> = {speakermode_output}. " +
-				$"\n<color=yellow>channel in</color> = {channels}. <color=yellow>channel out</color> = {outchannels}");
-
-			unsafe
+			if (result != FMOD.RESULT.OK)
 			{
-				float* data = (float*)@out.ToPointer();
-
-				for (int i = 0; i < samples.Length; i++)
-				{
-					*data++ = samples[i];
-				}
+				UnityEngine.Debug.LogError($"{action} {result}");
 			}
-
-			return FMOD.RESULT.OK;
+			else if(VERBOSE)
+			{
+				UnityEngine.Debug.Log($"{action} {result}");
+			}
+#pragma warning restore CS0162 // Unreachable code detected
 		}
 	}
 }

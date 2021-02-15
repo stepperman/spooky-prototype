@@ -40,5 +40,10 @@ namespace QTea
 		{
 			buffer.AddRange(samples);
 		}
+
+		public void Clear()
+		{
+			buffer.Clear();
+		}
 	}
 }

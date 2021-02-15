@@ -5,5 +5,7 @@
 		float[] PopSamples(uint count);
 		void PushSamples(float[] samples);
 		int Count { get; }
+
+		void Clear();
 	}
 }
