@@ -20,6 +20,9 @@ namespace QTea
 
 			microphoneService = ServiceLocator.Locate<MicrophoneService>();
 			microphoneService.OnSampleReady += PushSamples;
+
+			if (!microphoneService.Recording) microphoneService.StartRecording();
+			if (!microphoneService.Recording) microphoneService.StartRecording();
 		}
 
 		protected void OnDestroy()

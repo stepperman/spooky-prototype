@@ -15,8 +15,8 @@ namespace QTea
 	/// </summary>
 	public class MicrophoneEventProgrammer : MonoBehaviour
 	{
-		private const bool DEBUG = true;
-		private const bool VERBOSE = true;
+		private const bool DEBUG = false;
+		private const bool VERBOSE = false;
 		private const string pluginName = "Resonance Audio Source";
 		static private uint? _resonanceAudioSourceHandle = null;
 		
@@ -42,7 +42,7 @@ namespace QTea
 		private FMOD.ChannelGroup channelGroup;
 		private FMOD.DSP resonanceDSP;
 		private FMOD.Sound sound;
-		private FMOD.Channel channel;
+		//private FMOD.Channel channel;
 
 		private FMOD.SOUND_PCMREAD_CALLBACK readCallback;
 
@@ -69,7 +69,7 @@ namespace QTea
 
 		private void PlaySound()
 		{
-			RESULT result = RuntimeManager.CoreSystem.playSound(sound, default/*channelGroup*/, false, out channel);
+			RESULT result = RuntimeManager.CoreSystem.playSound(sound, default/*channelGroup*/, false, out var channel); // yo
 		}
 
 		/// <summary>
@@ -78,7 +78,7 @@ namespace QTea
 		private void CreateChannelGroup()
 		{
 			FMOD.RESULT result = FMODUnity.RuntimeManager.CoreSystem.createChannelGroup("voice", out channelGroup);
-			//channelGroup.setMode(MODE._3D);
+			channelGroup.setMode(MODE._3D);
 			FDEBUG("createChannelGroup", result);
 		}
 
@@ -110,15 +110,15 @@ namespace QTea
 			RESULT result;
 
 			CREATESOUNDEXINFO exInfo = new CREATESOUNDEXINFO();
-			exInfo.cbsize = Marshal.SizeOf(typeof(CREATESOUNDEXINFO));
+			exInfo.cbsize = Marshal.SizeOf(exInfo);
 			exInfo.format = SOUND_FORMAT.PCMFLOAT;
-			exInfo.numchannels = 1; // might have to be 2 for Resonance?
+			exInfo.numchannels = 1; 
 			exInfo.defaultfrequency = 48000;
-			exInfo.decodebuffersize = (uint)(exInfo.defaultfrequency / 1000 * 4);
-			exInfo.length = exInfo.decodebuffersize * (uint)exInfo.numchannels * sizeof(float);
-			exInfo.pcmreadcallback = (readCallback = new SOUND_PCMREAD_CALLBACK(FMOD_PCM_READ_CALLBACK));
-
-			result = RuntimeManager.CoreSystem.createSound("voice chat", MODE.LOOP_NORMAL | MODE.CREATESTREAM | MODE.OPENUSER | MODE._3D | MODE.OPENRAW, ref exInfo, out sound);
+			exInfo.decodebuffersize = 48000/1000;
+			exInfo.length = (uint)(exInfo.defaultfrequency * sizeof(float) * 10);
+			readCallback = new SOUND_PCMREAD_CALLBACK(FMOD_PCM_READ_CALLBACK);
+			exInfo.pcmreadcallback = readCallback;
+			result = RuntimeManager.CoreSystem.createSound("voice chat", MODE.LOOP_NORMAL | MODE.CREATESTREAM | MODE.OPENUSER/* | MODE.OPENRAW*/, ref exInfo, out sound);
 			
 			FDEBUG("createSound", result);
 		}
@@ -127,12 +127,18 @@ namespace QTea
 		{
 			if(buffer.Count == 0)
 			{
+				FDEBUG("FMOD_PCM_READ_CALLBACK EMPTY BUFFER", RESULT.OK);
+				return RESULT.OK;
+			}
+
+			if(!playing)
+			{
+				playing = buffer.Count > 48000 / 100;
 				return RESULT.OK;
 			}
 
 
 			float[] samples = buffer.PopSamples(datalen);
-			Debug.Log($"{datalen} en {samples.Length}");
 
 			unsafe
 			{
@@ -144,6 +150,7 @@ namespace QTea
 				}
 			}
 
+			FDEBUG("FMOD_PCM_READ_CALLBACK", RESULT.OK);
 			return RESULT.OK;
 		}
 
@@ -156,7 +163,7 @@ namespace QTea
 			for (int i = 0; i < numplugins; i++)
 			{
 				RuntimeManager.CoreSystem.getPluginHandle(FMOD.PLUGINTYPE.DSP, i, out uint handle);
-				RuntimeManager.CoreSystem.getPluginInfo(handle, out var plugintype, out string name, 50, out uint version);
+				RuntimeManager.CoreSystem.getPluginInfo(handle, out _, out string name, 50, out _);
 				if(name == pluginName) return handle;
 			}
 
@@ -187,11 +194,11 @@ namespace QTea
 
 			if (result != FMOD.RESULT.OK)
 			{
-				UnityEngine.Debug.LogError($"{action} {result}");
+				UnityEngine.Debug.LogError($"<color=red{action}</color> {result}");
 			}
 			else if(VERBOSE)
 			{
-				UnityEngine.Debug.Log($"{action} {result}");
+				UnityEngine.Debug.Log($"<color=yellow>{action}</color> {result}");
 			}
 #pragma warning restore CS0162 // Unreachable code detected
 		}

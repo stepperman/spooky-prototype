@@ -13,7 +13,7 @@ namespace QTea
 	[Service]
 	public class MicrophoneService
 	{
-		private const bool DEBUG = false;
+		private const bool DEBUG = true;
 
 		public event Action<float[]> OnSampleReady;
 
@@ -44,8 +44,6 @@ namespace QTea
 		private FMOD.Sound recordingSound;
 		private uint length;
 		private int frequency = 48000;
-
-		System.IO.FileStream sw;
 
 		public MicrophoneService()
 		{
@@ -79,8 +77,6 @@ namespace QTea
 			var result = recordingSound.release();
 			Debug.Log($"<color=yellow>recordingSound.release()</color> {result}");
 			recordingSound.clearHandle();
-			sw.Dispose();
-
 		}
 
 		public void StartRecording()
@@ -103,7 +99,7 @@ namespace QTea
 				$"<color=green>length</color> {length}");
 
 			FMODUnity.RuntimeManager.CoreSystem.createSound("mic", FMOD.MODE.LOOP_NORMAL | FMOD.MODE.OPENUSER, ref recordingInfo, out recordingSound);
-			/*sw = System.IO.File.Open("C:\\Users\\Stepe\\Documents\\rawdatatesting.txt", System.IO.FileMode.Append, System.IO.FileAccess.Write);*/
+			
 			FMODUnity.RuntimeManager.CoreSystem.recordStart(CurrentDevice.Id, recordingSound, true);	
 		}
 
@@ -113,15 +109,6 @@ namespace QTea
 
 		private void OnUpdateEvent()
 		{
-			/*void WriteRawData(float[] data)
-			{
-				for (int i = 0; i < data.Length; i++)
-				{
-					byte[] bytes = BitConverter.GetBytes(data[i]);
-					sw.Write(bytes, 0, bytes.Length);
-				}
-			}*/
-
 			// get the last 20 ms in samples.
 			// 20 ms in samples is Frequency / 1000 * channels * 20 = 960 if 1 channel @ 48khz
 			// 20 ms in position data is... Frequency / 1000 * channels * sizeof(float) > 4 * 20... I think = 3840
@@ -151,16 +138,19 @@ namespace QTea
 
 			int curPos = lastPos;
 			StringBuilder logMessage = new StringBuilder();
-			logMessage.AppendLine($"<color=red>curPos: {curPos}</color> <color=green>Pos: {Position}</color>");
+			if(DEBUG) logMessage.AppendLine($"<color=red>curPos: {curPos}</color> <color=green>Pos: {Position}</color>");
 			float[] buffer = new float[difPos / 4];
 
 			IntPtr ptrData1, ptrData2;
 			uint ptrLength1, ptrLength2;
 			var result = recordingSound.@lock((uint)curPos, (uint)difPos, out ptrData1, out ptrData2, out ptrLength1, out ptrLength2);
 
-			logMessage.AppendLine($"<color=yellow>Read result: l1 [ {ptrLength1} ] l2 [ {ptrLength2} ]</color>");
-			logMessage.AppendLine($"Read until [ {curPos + difPos} ] (excluding wrap)");
-			logMessage.AppendLine($"Lock {result}");
+			if (DEBUG)
+			{
+				logMessage.AppendLine($"<color=yellow>Read result: l1 [ {ptrLength1} ] l2 [ {ptrLength2} ]</color>");
+				logMessage.AppendLine($"Read until [ {curPos + difPos} ] (excluding wrap)");
+				logMessage.AppendLine($"Lock {result}");
+			}
 
 			float[] data1 = new float[ptrLength1 / sizeof(float)];
 
@@ -173,13 +163,12 @@ namespace QTea
 				}
 			}
 
-			logMessage.AppendLine($"<color=blue>data1 length: {data1.Length} {data1[0]}</color>");
+			if(DEBUG) logMessage.AppendLine($"<color=blue>data1 length: {data1.Length} {data1[0]}</color>");
 
 			result = recordingSound.unlock(ptrData1, ptrData2, ptrLength1, ptrLength2);
-			logMessage.AppendLine($"Unlock {result}");
+			if(DEBUG) logMessage.AppendLine($"Unlock {result}");
 
 			OnSampleReady?.Invoke(data1);
-			//WriteRawData(data1);
 			curPos += difPos;
 			if(curPos >= length)
 			{
