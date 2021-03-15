@@ -121,13 +121,13 @@ namespace CMF
 		//Update camera rotation based on x and y angles;
 		protected void UpdateRotation()
 		{
-			tr.localRotation = Quaternion.Euler(new Vector3(0, currentYAngle, 0));
+			tr.rotation/*localRotation*/ = Quaternion.Euler(new Vector3(0, currentYAngle, 0));
 
 			//Save 'facingDirection' and 'upwardsDirection' for later;
 			facingDirection = tr.forward;
 			upwardsDirection = tr.up;
 
-			tr.localRotation = Quaternion.Euler(new Vector3(currentXAngle, currentYAngle, 0));
+			tr.rotation/*localRotation */= Quaternion.Euler(new Vector3(currentXAngle, currentYAngle, 0));
 		}
 
 		//Set the camera's field-of-view (FOV);

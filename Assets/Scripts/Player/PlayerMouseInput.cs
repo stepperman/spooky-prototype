@@ -26,7 +26,7 @@ namespace QTea
 			playerInput.Player.Look.performed -= OnLookPerformed;
 		}
 
-		protected void Update()
+		protected void LateUpdate()
 		{
 			OnLook?.Invoke(playerInput.Player.Look.ReadValue<Vector2>());
 		}
